@@ -100,7 +100,7 @@ class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
         int num_threads;
         std::vector<std::thread> threads;
         std::mutex mtx;
-    std::mutex dependency_mtx;
+        std::mutex dependency_mtx;
     //std::mutex depsLock;
         std::condition_variable cv;           // wake up sleeping threads
         std::condition_variable cv_finished;  // tells sync when all batches are done
