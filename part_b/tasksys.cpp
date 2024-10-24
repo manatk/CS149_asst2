@@ -398,9 +398,10 @@ TaskID TaskSystemParallelThreadPoolSleeping::runAsyncWithDeps(IRunnable* runnabl
    }
    
    if (deps.empty()) {
-       std::unique_lock<std::mutex> lock(mtx);
        for (int i = 0; i < num_total_tasks; i++) {
+	 mtx.lock();
            ready_queue.push(std::make_tuple(runnable, task_id, i, num_total_tasks));
+	   mtx.unlock();
        }
        cv.notify_all();
    }
@@ -451,7 +452,7 @@ void TaskSystemParallelThreadPoolSleeping::workerThread() {
        IRunnable* cur_runnable = std::get<0>(task);
        int cur_task = std::get<2>(task);
        int total_tasks = std::get<3>(task);
-       int taskID = std::get<1>(task);
+       TaskID taskID = std::get<1>(task);
        
        cur_runnable->runTask(cur_task, total_tasks);
 
@@ -461,7 +462,6 @@ void TaskSystemParallelThreadPoolSleeping::workerThread() {
        if (tasksCompletedPerBatch[taskID] == total_tasks) {
            info_lock.unlock();
            updateDependency_Queue(taskID);
-	   info_lock.lock();
        } else {
 	 info_lock.unlock();
        }
