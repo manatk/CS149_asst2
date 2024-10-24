@@ -222,11 +222,11 @@ const char* TaskSystemParallelThreadPoolSleeping::name() {
 }
 
 TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int num_threads): ITaskSystem(num_threads) {
-    this->tasks_left = 0;
-    this->num_total_tasks = 0;
-    this->tasks_finished = 0;
-    this->stop = false;
-    this->cur_runnable = NULL;      
+    tasks_left = 0;
+    num_total_tasks = 0;
+    tasks_finished = 0;
+    stop = false;
+    cur_runnable = NULL;      
 
 
     for (int i = 0; i < num_threads; i++){
@@ -259,7 +259,7 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_tota
     while (tasks_finished < num_total_tasks){
         cv_finished.wait(lock);  //wait until last task finishes
     }
-    tasks_left = -1;
+    // tasks_left = -1;
 }
 
 void TaskSystemParallelThreadPoolSleeping::workerThread(){
@@ -295,7 +295,7 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
         tasks_finished += batch_size;
 
         if (tasks_finished >= num_total_tasks) {
-            lock.unlock();
+            lock.unlock(); //release lock before notifying so threads can wake up immediately
             cv_finished.notify_all(); // wake up run after last task finishes
         }
         else {
