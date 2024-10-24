@@ -271,10 +271,9 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_tota
 void TaskSystemParallelThreadPoolSleeping::workerThread(){
     
     while (true) {
-      //int start_task = -1;
-      std::unique_lock<std::mutex> lock(mtx);
+       std::unique_lock<std::mutex> lock(mtx);
 
-       while (tasks_remaining == 0){
+       while (tasks_remaining <= 0){
             cv.wait(lock);   
        }
 
@@ -283,17 +282,24 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
            break;
         }
 
-
+        int batch_size = 2;
+	if (tasks_remaining < 32){
+	  batch_size = 1;
+	}
+	
 	int task_count = total_tasks - tasks_remaining;
 	int temp_total = total_tasks;
-	tasks_remaining--;
+	tasks_remaining -= batch_size;
          
          lock.unlock();
-	 
 	   cur_runnable->runTask(task_count, temp_total);
-
+	   if (batch_size==2){
+	     
+	        cur_runnable->runTask(task_count+1, temp_total);
+	   }
+	   
 	   lock.lock();
-         tasks_completed ++;
+         tasks_completed += batch_size;
          
          if (tasks_completed >= total_tasks) {
 	   lock.unlock();
