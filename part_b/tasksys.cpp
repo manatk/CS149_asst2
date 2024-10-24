@@ -441,14 +441,12 @@ void TaskSystemParallelThreadPoolSleeping::workerThread() {
        ready_queue.pop();
        lock.unlock();
        
-       // Run task without any locks
        IRunnable* cur_runnable = std::get<0>(task);
        int cur_task = std::get<2>(task);
        int total_tasks = std::get<3>(task);
        int taskID = std::get<1>(task);
        cur_runnable->runTask(cur_task, total_tasks);
        
-       // Update completion status
        lock.lock();
        tasksCompletedPerBatch[taskID]++;
        if (tasksCompletedPerBatch[taskID] == total_tasks) {
@@ -463,8 +461,9 @@ void TaskSystemParallelThreadPoolSleeping::workerThread() {
 void TaskSystemParallelThreadPoolSleeping::updateDependency_Queue(TaskID completed_task) {
    std::vector<std::tuple<IRunnable*, TaskID, int>> tasksToSchedule;
    
-   // First handle all dependency-related work
    {
+       //consider doing one lock for each task id - try to reduce number of time you keep lock while keeping the implementation correct
+       //also look at improvements for single threaded version
        std::unique_lock<std::mutex> depsLock(dependency_mtx);
        finishedTasks.insert(completed_task);
        
@@ -475,7 +474,6 @@ void TaskSystemParallelThreadPoolSleeping::updateDependency_Queue(TaskID complet
                dependency_counter[waitingTaskID]--;
                
                if (dependency_counter[waitingTaskID] == 0) {
-                   // Save tasks that need to be scheduled
                    tasksToSchedule.push_back(taskTuple);
                    dependency_counter.erase(waitingTaskID);
                }
@@ -484,12 +482,10 @@ void TaskSystemParallelThreadPoolSleeping::updateDependency_Queue(TaskID complet
        }
    }
    
-   // Then handle execution-related work
    {
        std::unique_lock<std::mutex> lock(mtx);
        num_batches_done++;
        
-       // Schedule any tasks that are now ready
        for (const auto& taskTuple : tasksToSchedule) {
            IRunnable* current = std::get<0>(taskTuple);
            TaskID waitingTaskID = std::get<1>(taskTuple);
@@ -516,3 +512,5 @@ void TaskSystemParallelThreadPoolSleeping::sync() {
        cv_finished.wait(lock);
    }
 }
+
+//release lock and then call notify - optimize code
