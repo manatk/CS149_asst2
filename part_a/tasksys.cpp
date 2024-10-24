@@ -222,12 +222,12 @@ const char* TaskSystemParallelThreadPoolSleeping::name() {
 }
 
 TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int num_threads): ITaskSystem(num_threads) {
-    cur_runnable = NULL;      
-    tasks_remaining = 0;
-    total_tasks = 0;
-    tasks_completed = 0;
-    num_threads = num_threads;
-    stop = false;
+    this->cur_runnable = NULL;      
+    this->tasks_remaining = 0;
+    this->total_tasks = 0;
+    this->tasks_completed = 0;
+    this->num_threads = num_threads;
+    this->stop = false;
 
     for (int i = 0; i < num_threads; i++){
         threads.push_back(std::thread(&TaskSystemParallelThreadPoolSleeping::workerThread, this));
