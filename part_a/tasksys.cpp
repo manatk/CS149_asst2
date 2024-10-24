@@ -222,12 +222,12 @@ const char* TaskSystemParallelThreadPoolSleeping::name() {
 }
 
 TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int num_threads): ITaskSystem(num_threads) {
-    this->cur_runnable = NULL;      
-    this->tasks_remaining = 0;
+    this->tasks_left = 0;
     this->num_total_tasks = 0;
     this->tasks_finished = 0;
-    // this->num_threads = num_threads;
     this->stop = false;
+    this->cur_runnable = NULL;      
+
 
     for (int i = 0; i < num_threads; i++){
         threads.push_back(std::thread(&TaskSystemParallelThreadPoolSleeping::workerThread, this));
@@ -237,7 +237,6 @@ TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int n
 TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
     mtx.lock();
     stop = true;
-    // tasks_remaining = 1;
     mtx.unlock();  
     cv.notify_all();      // wake up sleeping threads when all runs done
     
@@ -251,19 +250,16 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_tota
     cur_runnable = runnable;
   
     mtx.lock();
-    num_total_tasks = num_total_tasks;
-    tasks_remaining = num_total_tasks;
-    tasks_finished = 0;
+    this->num_total_tasks = num_total_tasks;
+    this->tasks_left = num_total_tasks;
+    this->tasks_finished = 0;
     mtx.unlock();
-
     cv.notify_all();
-    
     std::unique_lock<std::mutex> lock(mtx);
-
     while (tasks_finished < num_total_tasks){
         cv_finished.wait(lock);  //wait until last task finishes
     }
-    // lock.unlock();
+    tasks_left = -1;
 }
 
 void TaskSystemParallelThreadPoolSleeping::workerThread(){
@@ -271,7 +267,7 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
     while (true) {
        std::unique_lock<std::mutex> lock(mtx);
 
-       while (tasks_remaining <= 0 && !stop){
+       while (!stop && tasks_left <= 0){
             cv.wait(lock);   
        }
 
@@ -281,13 +277,13 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
         }
 
         int batch_size = 2;
-        if (tasks_remaining < 32){
-        batch_size = 1;
+        //for the last few tasks, run only one at a time to make sure work is evenly distributed
+        if (tasks_left < 32){
+            batch_size = 1;
         }
-	
-        int task_count = num_total_tasks - tasks_remaining;
+        int task_count = num_total_tasks - tasks_left;
+        tasks_left -= batch_size;
         int temp_total = num_total_tasks;
-        tasks_remaining -= batch_size;
         
         lock.unlock();
         cur_runnable->runTask(task_count, temp_total);

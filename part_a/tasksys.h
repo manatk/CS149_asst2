@@ -98,16 +98,13 @@ class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
 
     private:
         std::vector<std::thread> threads;
-        // int num_threads;
-   
+        void workerThread();
+        int counter;
+        int tasks_left;
+        int tasks_finished;
         IRunnable* cur_runnable;
         int num_total_tasks;
-        std::mutex mtx;
-  
-       void workerThread();
-       int counter;
-       int tasks_remaining;
-       int tasks_finished;
+    std::mutex mtx;
        std::condition_variable cv;
        std::condition_variable cv_finished;
        bool stop;
