@@ -379,19 +379,24 @@ TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
 }
 
 void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_total_tasks) {
-   runAsyncWithDeps(runnable, num_total_tasks, {});
-   sync();
+  runAsyncWithDeps(runnable, num_total_tasks, {});
+  sync();
+  
 }
 
 TaskID TaskSystemParallelThreadPoolSleeping::runAsyncWithDeps(IRunnable* runnable, int num_total_tasks,
                                                    const std::vector<TaskID>& deps) {
    TaskID task_id;
    {
-       std::unique_lock<std::mutex> lock(mtx);
-       task_id = next_task_id++;
-       tasksCompletedPerBatch[task_id] = 0;
+     std::unique_lock<std::mutex> batch_lock(batch_mtx);
+       task_id = next_task_id++;       
    }
-
+   
+   {
+    std::unique_lock<std::mutex> info_lock(info_mtx); 
+     tasksCompletedPerBatch[task_id] = 0;
+   }
+   
    if (deps.empty()) {
        std::unique_lock<std::mutex> lock(mtx);
        for (int i = 0; i < num_total_tasks; i++) {
@@ -434,42 +439,47 @@ void TaskSystemParallelThreadPoolSleeping::workerThread() {
        }
        
        if (stop) {
+       	  lock.unlock();
            break;
        }
 
        auto task = ready_queue.front();
        ready_queue.pop();
+
        lock.unlock();
        
        IRunnable* cur_runnable = std::get<0>(task);
        int cur_task = std::get<2>(task);
        int total_tasks = std::get<3>(task);
        int taskID = std::get<1>(task);
-       cur_runnable->runTask(cur_task, total_tasks);
        
-       lock.lock();
+       cur_runnable->runTask(cur_task, total_tasks);
+
+       std::unique_lock<std::mutex> info_lock(info_mtx);
+
        tasksCompletedPerBatch[taskID]++;
        if (tasksCompletedPerBatch[taskID] == total_tasks) {
-           lock.unlock();
+           info_lock.unlock();
            updateDependency_Queue(taskID);
+	   info_lock.lock();
        } else {
-           lock.unlock();
+	 info_lock.unlock();
        }
    }
 }
 
 void TaskSystemParallelThreadPoolSleeping::updateDependency_Queue(TaskID completed_task) {
+    
    std::vector<std::tuple<IRunnable*, TaskID, int>> tasksToSchedule;
    
    {
-       //consider doing one lock for each task id - try to reduce number of time you keep lock while keeping the implementation correct
-       //also look at improvements for single threaded version
        std::unique_lock<std::mutex> depsLock(dependency_mtx);
        finishedTasks.insert(completed_task);
        
        auto it = waiting_map.find(completed_task);
+       
        if (it != waiting_map.end()) {
-           for (auto taskTuple: it->second) {
+           for (auto& taskTuple: it->second) {
                TaskID waitingTaskID = std::get<1>(taskTuple);
                dependency_counter[waitingTaskID]--;
                
@@ -481,36 +491,38 @@ void TaskSystemParallelThreadPoolSleeping::updateDependency_Queue(TaskID complet
            waiting_map.erase(it);
        }
    }
-   
-   {
-       std::unique_lock<std::mutex> lock(mtx);
-       num_batches_done++;
-       
-       for (const auto& taskTuple : tasksToSchedule) {
+      
+   for (const auto& taskTuple : tasksToSchedule) {
            IRunnable* current = std::get<0>(taskTuple);
            TaskID waitingTaskID = std::get<1>(taskTuple);
            int total_tasks = std::get<2>(taskTuple);
            
+           std::unique_lock<std::mutex> lock(mtx);
            for (int i = 0; i < total_tasks; i++) {
+               
                ready_queue.push(std::make_tuple(current, waitingTaskID, i, total_tasks));
            }
-       }
+           lock.unlock();
+   }
+
        
-       if (!tasksToSchedule.empty()) {
+   if (!tasksToSchedule.empty()) {
            cv.notify_all();
-       }
-       
+   }
+
+   {
+       std::unique_lock<std::mutex> batch_lock(batch_mtx);
+       num_batches_done++;
        if (num_batches_done >= next_task_id) {
            cv_finished.notify_all();
        }
    }
+  
 }
 
 void TaskSystemParallelThreadPoolSleeping::sync() {
-   std::unique_lock<std::mutex> lock(mtx);
+   std::unique_lock<std::mutex> batch_lock(batch_mtx);
    while(num_batches_done < next_task_id) {
-       cv_finished.wait(lock);
+       cv_finished.wait(batch_lock);
    }
 }
-
-//release lock and then call notify - optimize code
