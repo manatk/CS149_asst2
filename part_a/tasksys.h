@@ -98,7 +98,7 @@ class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
 
     private:
         std::vector<std::thread> threads;
-        int num_threads;
+        // int num_threads;
    
         IRunnable* cur_runnable;
         int total_tasks;

@@ -226,7 +226,7 @@ TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int n
     this->tasks_remaining = 0;
     this->total_tasks = 0;
     this->tasks_completed = 0;
-    this->num_threads = num_threads;
+    // this->num_threads = num_threads;
     this->stop = false;
 
     for (int i = 0; i < num_threads; i++){
