@@ -3,8 +3,6 @@
 #include <stdio.h>
 #include <atomic>
 #include <mutex>
-#include <functional>
-#include <chrono>
 
 IRunnable::~IRunnable() {}
 
@@ -120,14 +118,6 @@ const char* TaskSystemParallelThreadPoolSpinning::name() {
 }
 
 TaskSystemParallelThreadPoolSpinning::TaskSystemParallelThreadPoolSpinning(int num_threads): ITaskSystem(num_threads) {
-    //
-    // TODO: CS149 student implementations may decide to perform setup
-    // operations (such as thread pool construction) here.
-    // Implementations are free to add new class member variables
-    // (requiring changes to tasksys.h).
-    //
- 
-    //create all worker threads in constructor
     
     this->counter = 0;
     this->total_tasks = 0;
@@ -253,18 +243,19 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_tota
     cur_runnable = runnable;
   
     mtx.lock();
-    total_tasks = num_total_tasks;
-    tasks_remaining = num_total_tasks;
     tasks_completed = 0;
+    tasks_remaining = num_total_tasks;
+    total_tasks = num_total_tasks;
     mtx.unlock();
 
     cv.notify_all();
     
     std::unique_lock<std::mutex> lock(mtx);
-
+    
     while (tasks_completed < total_tasks){
-        cv_finished.wait(lock);  //wait until last task finishes
+        cv_finished.wait(lock); 
     }
+    
     lock.unlock();
 }
 
@@ -282,8 +273,8 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
            break;
         }
 
-        int batch_size = 2;
-	if (tasks_remaining < 32){
+        int batch_size = 2;         // process two tasks per loop iteration
+	if (tasks_remaining < 32){  // when last 32 tasks, process one task per loop iteration
 	  batch_size = 1;
 	}
 	
@@ -291,23 +282,22 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
 	int temp_total = total_tasks;
 	tasks_remaining -= batch_size;
          
-         lock.unlock();
-	   cur_runnable->runTask(task_count, temp_total);
-	   if (batch_size==2){
-	     
-	        cur_runnable->runTask(task_count+1, temp_total);
-	   }
-	   
-	   lock.lock();
-         tasks_completed += batch_size;
-         
-         if (tasks_completed >= total_tasks) {
-	   lock.unlock();
-             cv_finished.notify_all(); // wake up run after last task finishes
-         }else{
-	   lock.unlock();
+        lock.unlock();
+	
+	cur_runnable->runTask(task_count, temp_total);    
+	if (batch_size==2){
+		cur_runnable->runTask(task_count+1, temp_total);
+	}
+	
+	lock.lock();
+	    
+        tasks_completed += batch_size;
+        if (tasks_completed >= total_tasks) {
+		lock.unlock();
+		cv_finished.notify_all(); // wake up run after last task finishes
+         } else {
+		lock.unlock();
 	 }
-         
     }
 }
 
@@ -327,3 +317,6 @@ void TaskSystemParallelThreadPoolSleeping::sync() {
     //
     // TODO: CS149 students will modify the implementation of this method in Part B.
     //
+
+    return;
+}
