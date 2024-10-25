@@ -294,9 +294,9 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
 		lock.unlock();
 		cv_finished.notify_all(); // wake up run after last task finishes
         } 
-        else {
-		    lock.unlock();
-	 }
+    //     else {
+	// 	    lock.unlock();
+	//  }
     }
 }
 
