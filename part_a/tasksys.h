@@ -104,8 +104,8 @@ class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
 
        void workerThread();
 
-       int tasks_remaining;
-       int tasks_completed;
+       int tasks_left;
+       int tasks_finished;
        std::condition_variable cv;
        std::condition_variable cv_finished;
        bool stop;

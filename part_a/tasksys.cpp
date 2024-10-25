@@ -212,12 +212,13 @@ const char* TaskSystemParallelThreadPoolSleeping::name() {
 }
 
 TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int num_threads): ITaskSystem(num_threads) {
-    this->cur_runnable = NULL;      
-    this->tasks_remaining = 0;
+    this->tasks_left = 0;
     this->total_tasks = 0;
-    this->tasks_completed = 0;
-    this->num_threads = num_threads;
+    this->tasks_finished = 0;
+    // this->num_threads = num_threads;
     this->stop = false;
+    this->cur_runnable = NULL;      
+
 
     for (int i = 0; i < num_threads; i++){
         threads.push_back(std::thread(&TaskSystemParallelThreadPoolSleeping::workerThread, this));
@@ -227,8 +228,7 @@ TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int n
 TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
     mtx.lock();
     stop = true;
-
-    tasks_remaining = 1;
+    // tasks_left = 1;
     mtx.unlock();
        
     cv.notify_all();      // wake up sleeping threads when all runs done
@@ -243,8 +243,8 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_tota
     cur_runnable = runnable;
   
     mtx.lock();
-    tasks_completed = 0;
-    tasks_remaining = num_total_tasks;
+    tasks_finished = 0;
+    tasks_left = num_total_tasks;
     total_tasks = num_total_tasks;
     mtx.unlock();
 
@@ -252,7 +252,7 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_tota
     
     std::unique_lock<std::mutex> lock(mtx);
     
-    while (tasks_completed < total_tasks){
+    while (tasks_finished < total_tasks){
         cv_finished.wait(lock); 
     }
     
@@ -264,25 +264,24 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
     while (true) {
        std::unique_lock<std::mutex> lock(mtx);
 
-       while (tasks_remaining <= 0){
+       while (tasks_left <= 0 && !stop){
             cv.wait(lock);   
        }
 
         if (stop){
-	  lock.unlock();
+	        lock.unlock();
            break;
         }
-
         int batch_size = 2;         // process two tasks per loop iteration
-	if (tasks_remaining < 32){  // when last 32 tasks, process one task per loop iteration
+	
+    if (tasks_left < 32){  // when last 32 tasks, process one task per loop iteration
 	  batch_size = 1;
 	}
 	
-	int task_count = total_tasks - tasks_remaining;
-	int temp_total = total_tasks;
-	tasks_remaining -= batch_size;
-         
-        lock.unlock();
+	int task_count = total_tasks - tasks_left;
+    tasks_left -= batch_size;
+	int temp_total = total_tasks;     
+    lock.unlock();
 	
 	cur_runnable->runTask(task_count, temp_total);    
 	if (batch_size==2){
@@ -291,8 +290,8 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
 	
 	lock.lock();
 	    
-        tasks_completed += batch_size;
-        if (tasks_completed >= total_tasks) {
+        tasks_finished += batch_size;
+        if (tasks_finished >= total_tasks) {
 		lock.unlock();
 		cv_finished.notify_all(); // wake up run after last task finishes
          } else {
