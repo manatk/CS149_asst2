@@ -152,6 +152,76 @@ class SimpleMultiplyTask : public IRunnable {
 };
 
 /*
+ * Each task adds 1 to its assigned number. CREATED BY MANAT
+*/ 
+class SimpleAddTask : public IRunnable {
+    public:
+        int* input_;
+        int* output_;
+        
+        SimpleAddTask(int* input, int* output) 
+            : input_(input), output_(output) {}
+        ~SimpleAddTask() {}
+
+        void runTask(int task_id, int num_total_tasks) {
+            output_[task_id] = input_[task_id] + 1;
+        }
+};
+
+TestResults simpleAddTest(ITaskSystem* t, bool do_async) {
+    const int num_tasks = 4;  
+    
+    int* input = new int[num_tasks];
+    int* output = new int[num_tasks];
+
+    for (int i = 0; i < num_tasks; i++) {
+        input[i] = i;  // 0, 1, 2, 3
+        output[i] = 0;
+    }
+
+    // Create task
+    SimpleAddTask task(input, output);
+
+    // Run the test
+    double start_time = CycleTimer::currentSeconds();
+    if (do_async) {
+        std::vector<TaskID> deps;  // No dependencies
+        t->runAsyncWithDeps(&task, num_tasks, deps);
+        t->sync();
+    } else {
+        t->run(&task, num_tasks);
+    }
+    double end_time = CycleTimer::currentSeconds();
+
+    // Verify results - each number should be incremented by 1
+    TestResults results;
+    results.passed = fals;
+    
+    for (int i = 0; i < num_tasks; i++) {
+        if (output[i] != input[i] + 1) {
+            results.passed = false;
+            printf("Error at index %d: got %d, expected %d\n", 
+                   i, output[i], input[i] + 1);
+            break;
+        }
+    }
+    results.time = end_time - start_time;
+
+    // Cleanup
+    delete[] input;
+    delete[] output;
+    return results;
+}
+
+TestResults simpleAddTestSync(ITaskSystem* t) {
+    return simpleAddTest(t, false);
+}
+
+TestResults simpleAddTestAsync(ITaskSystem* t) {
+    return simpleAddTest(t, true);
+}
+
+/*
  * Each task computes an output list of accumulated counters. Each counter
  * is incremented in a tight for loop. The `equal_work_` field ensures that
  * each element of the output array requires a different amount of computation.
