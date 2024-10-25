@@ -116,6 +116,13 @@ void TaskSystemParallelThreadPoolSpinning::sync() {
     // NOTE: CS149 students are not expected to implement TaskSystemParallelThreadPoolSpinning in Part B.
     return;
 }
+
+
+/* ================================================================
+ * Parallel Thread Pool Sleeping Task System Implementation
+ * ================================================================
+ */
+
 const char* TaskSystemParallelThreadPoolSleeping::name() {
    return "Parallel + Thread Pool + Sleep";
 }
@@ -166,19 +173,21 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_tota
 TaskID TaskSystemParallelThreadPoolSleeping::runAsyncWithDeps(IRunnable* runnable, int num_total_tasks,
                                                    const std::vector<TaskID>& deps) {
    TaskID task_id;
-   std::unique_lock<std::mutex> batch_lock(batch_mtx);
-   task_id = next_task_id++;
-   batch_lock.unlock();     
-
-   std::unique_lock<std::mutex> info_lock(info_mtx);
-   tasksCompletedPerBatch[task_id] = 0;
-   info_lock.unlock();
+   {
+     std::unique_lock<std::mutex> batch_lock(batch_mtx);
+       task_id = next_task_id++;       
+   }
+   
+   {
+    std::unique_lock<std::mutex> info_lock(info_mtx); 
+     tasksCompletedPerBatch[task_id] = 0;
+   }
    
    if (deps.empty()) {
        for (int i = 0; i < num_total_tasks; i++) {
-	        mtx.lock();
+	 mtx.lock();
            ready_queue.push(std::make_tuple(runnable, task_id, i, num_total_tasks));
-	       mtx.unlock();
+	   mtx.unlock();
        }
        cv.notify_all();
    }
