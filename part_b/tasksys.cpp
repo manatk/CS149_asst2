@@ -284,13 +284,11 @@ void TaskSystemParallelThreadPoolSleeping::updateDependency_Queue(TaskID complet
            int total_tasks = std::get<2>(taskTuple);
            
            std::unique_lock<std::mutex> lock(mtx);
-           for (int i = 0; i < total_tasks; i++) {
-               
+           for (int i = 0; i < total_tasks; i++) {   
                ready_queue.push(std::make_tuple(current, waitingTaskID, i, total_tasks));
            }
            lock.unlock();
    }
-
        
    if (!tasksToSchedule.empty()) {
            cv.notify_all();
