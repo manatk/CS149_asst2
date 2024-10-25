@@ -277,8 +277,9 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
 	}
 	
 	int task_count = total_tasks - tasks_left;
-	int temp_total = total_tasks;
 	tasks_left -= batch_size;
+    int temp_total = total_tasks;
+
          
         lock.unlock();
 	
