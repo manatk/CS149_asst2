@@ -255,7 +255,6 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_tota
     while (tasks_finished < total_tasks){
         cv_finished.wait(lock); 
     }
-    // lock.unlock();
 }
 
 void TaskSystemParallelThreadPoolSleeping::workerThread(){
@@ -268,11 +267,11 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
        }
 
         if (stop){
-	  lock.unlock();
+	        lock.unlock();
            break;
         }
 
-        int batch_size = 2;         // process two tasks per loop iteration
+        int batch_size = 2;         // process two tasks per loop iteration to boost performance
 	if (tasks_left < 32){  // when last 32 tasks, process one task per loop iteration
 	  batch_size = 1;
 	}
@@ -295,9 +294,9 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
 		lock.unlock();
 		cv_finished.notify_all(); // wake up run after last task finishes
         } 
-    //     else {
-	// 	    lock.unlock();
-	//  }
+        else {
+		    lock.unlock();
+	 }
     }
 }
 
