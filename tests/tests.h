@@ -195,7 +195,7 @@ TestResults simpleAddTest(ITaskSystem* t, bool do_async) {
 
     // Verify results - each number should be incremented by 1
     TestResults results;
-    results.passed = fals;
+    results.passed = true;
     
     for (int i = 0; i < num_tasks; i++) {
         if (output[i] != input[i] + 1) {
