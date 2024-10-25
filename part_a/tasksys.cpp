@@ -272,7 +272,7 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
            break;
         }
 
-        int batch_size = 2;         // process two tasks per loop iteration to boost performance
+        int batch_size = 2;         // process two tasks per loop iteration
 	if (tasks_left < 32){  // when last 32 tasks, process one task per loop iteration
 	  batch_size = 1;
 	}
