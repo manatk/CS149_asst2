@@ -288,8 +288,7 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
 		cur_runnable->runTask(task_count+1, temp_total);
 	}
 	
-	// lock.lock();
-    std::unique_lock<std::mutex> lock(mtx);
+	lock.lock();
 	    
         tasks_finished += batch_size;
         if (tasks_finished >= total_tasks) {
