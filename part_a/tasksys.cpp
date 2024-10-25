@@ -229,7 +229,7 @@ TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
     mtx.lock();
     stop = true;
 
-    tasks_left = INT_MAX;
+    tasks_left = 1;
     mtx.unlock();
        
     cv.notify_all();      // wake up sleeping threads when all runs done
