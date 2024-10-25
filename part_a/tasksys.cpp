@@ -121,7 +121,7 @@ TaskSystemParallelThreadPoolSpinning::TaskSystemParallelThreadPoolSpinning(int n
     
     this->counter = 0;
     this->total_tasks = 0;
-    this->tasks_completed = 0;
+    this->tasks_finished = 0;
 
     for (int i = 0; i < num_threads; i++){
         threads.push_back(std::thread(&TaskSystemParallelThreadPoolSpinning::workerThread, this));
@@ -143,7 +143,7 @@ void TaskSystemParallelThreadPoolSpinning::run(IRunnable* runnable, int num_tota
     
     total_tasks = num_total_tasks;
     counter = 0;
-    tasks_completed = 0;
+    tasks_finished = 0;
     cur_runnable = runnable;
     
     mtx.unlock();
@@ -151,7 +151,7 @@ void TaskSystemParallelThreadPoolSpinning::run(IRunnable* runnable, int num_tota
     while (true){
         mtx.lock();
         
-        if (tasks_completed >= total_tasks){
+        if (tasks_finished >= total_tasks){
             mtx.unlock();
             break; // done with current run when all tasks complete
         }
@@ -185,7 +185,7 @@ void TaskSystemParallelThreadPoolSpinning::workerThread(){
 
          cur_runnable->runTask(temp, total_tasks);
 
-         tasks_completed++;
+         tasks_finished++;
          
     }
 }
@@ -212,11 +212,11 @@ const char* TaskSystemParallelThreadPoolSleeping::name() {
 }
 
 TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int num_threads): ITaskSystem(num_threads) {
+    this->stop = false;
     this->tasks_left = 0;
     this->total_tasks = 0;
     this->tasks_finished = 0;
     // this->num_threads = num_threads;
-    this->stop = false;
     this->cur_runnable = NULL;      
 
 
@@ -228,7 +228,8 @@ TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int n
 TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
     mtx.lock();
     stop = true;
-    // tasks_left = 1;
+
+    tasks_left = INT_MAX;
     mtx.unlock();
        
     cv.notify_all();      // wake up sleeping threads when all runs done
@@ -264,24 +265,25 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
     while (true) {
        std::unique_lock<std::mutex> lock(mtx);
 
-       while (tasks_left <= 0 && !stop){
+       while (tasks_left <= 0){
             cv.wait(lock);   
        }
 
         if (stop){
-	        lock.unlock();
+	  lock.unlock();
            break;
         }
+
         int batch_size = 2;         // process two tasks per loop iteration
-	
-    if (tasks_left < 32){  // when last 32 tasks, process one task per loop iteration
+	if (tasks_left < 32){  // when last 32 tasks, process one task per loop iteration
 	  batch_size = 1;
 	}
 	
 	int task_count = total_tasks - tasks_left;
-    tasks_left -= batch_size;
-	int temp_total = total_tasks;     
-    lock.unlock();
+	int temp_total = total_tasks;
+	tasks_left -= batch_size;
+         
+        lock.unlock();
 	
 	cur_runnable->runTask(task_count, temp_total);    
 	if (batch_size==2){

@@ -75,7 +75,7 @@ private:
     
     void workerThread();
     std::atomic<int> counter;
-    std::atomic<int> tasks_completed;
+    std::atomic<int> tasks_finished;
     bool stop = false;
     
 };
