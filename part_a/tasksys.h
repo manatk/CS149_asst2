@@ -75,7 +75,7 @@ private:
     
     void workerThread();
     std::atomic<int> counter;
-    std::atomic<int> tasks_finished;
+    std::atomic<int> tasks_completed;
     bool stop = false;
     
 };
@@ -98,16 +98,17 @@ class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
 
     private:
         std::vector<std::thread> threads;
-        void workerThread();
-        int counter;
-        int tasks_left;
-        int tasks_finished;
+        int num_threads;
+   
         IRunnable* cur_runnable;
-        int num_total_tasks;
-    std::mutex mtx;
+        int total_tasks;
+        std::mutex mtx;
+  
+       void workerThread();
+       int counter;
+       int tasks_remaining;
+       int tasks_completed;
        std::condition_variable cv;
        std::condition_variable cv_finished;
        bool stop;
 };
-
-#endif
