@@ -263,7 +263,7 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
     while (true) {
        std::unique_lock<std::mutex> lock(mtx);
 
-       while (!stop && tasks_left <= 0){
+       while (tasks_left <= 0){
             cv.wait(lock);   
        }
 
