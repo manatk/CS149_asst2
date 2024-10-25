@@ -216,7 +216,6 @@ TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int n
     this->tasks_left = 0;
     this->total_tasks = 0;
     this->tasks_finished = 0;
-    // this->num_threads = num_threads;
     this->cur_runnable = NULL;      
 
 
@@ -227,9 +226,10 @@ TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int n
 
 TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
     mtx.lock();
-    stop = true;
+    stop = true; 
 
-    tasks_left = 1;
+
+    tasks_left = 500; //break out of loop
     mtx.unlock();
        
     cv.notify_all();      // wake up sleeping threads when all runs done
@@ -247,17 +247,15 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_tota
     tasks_finished = 0;
     tasks_left = num_total_tasks;
     total_tasks = num_total_tasks;
+    
     mtx.unlock();
-
     cv.notify_all();
     
     std::unique_lock<std::mutex> lock(mtx);
-    
     while (tasks_finished < total_tasks){
         cv_finished.wait(lock); 
     }
-    
-    lock.unlock();
+    // lock.unlock();
 }
 
 void TaskSystemParallelThreadPoolSleeping::workerThread(){
@@ -296,8 +294,9 @@ void TaskSystemParallelThreadPoolSleeping::workerThread(){
         if (tasks_finished >= total_tasks) {
 		lock.unlock();
 		cv_finished.notify_all(); // wake up run after last task finishes
-         } else {
-		lock.unlock();
+        } 
+        else {
+		    lock.unlock();
 	 }
     }
 }
