@@ -97,7 +97,6 @@ class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
         void sync();
     private:
        std::vector<std::thread> threads;
-       int num_threads;
        IRunnable* cur_runnable;
        int total_tasks;
        std::mutex mtx;
